@@ -16,6 +16,7 @@ import json
 import logging
 import shutil
 import tempfile
+from collections.abc import Iterator
 from decimal import Decimal
 from pathlib import Path
 
@@ -57,8 +58,18 @@ app = FastAPI(
 _progress: dict[int, list[str]] = {}
 
 
-def get_repos() -> Repositories:
-    return Repositories.open()
+def get_repos() -> Iterator[Repositories]:
+    """One session per request, returned to the pool when the request ends.
+
+    This has to be a generator. FastAPI only runs teardown for dependencies
+    that yield - a dependency that returns is never cleaned up, so every
+    request would hold its connection until the pool ran dry.
+    """
+    repos = Repositories.open()
+    try:
+        yield repos
+    finally:
+        repos.close()
 
 
 bearer = HTTPBearer(auto_error=False, description="Token from POST /api/v1/auth/login")
