@@ -79,14 +79,26 @@ need no model call at all.
 
 ## A note on the data
 
-Every company, bank, person and registration number in these files is invented.
-The client, the bank that issues the statement, and every vendor that issues an
-invoice or receipt are all fictional, because these files render as documents —
-a statement PDF carries the bank's name as its header, and an invoice PDF
-carries the vendor's name and a GST registration number. Real names do not
-belong on a fabricated financial record.
+None of this is real. The client, the bank that issues the statement, every
+vendor that issues an invoice or receipt, every person, every account number and
+every registration number are invented. No transaction described here occurred.
 
-`IRAS` and `CPF Board` are the exceptions and appear as themselves. They are
-statutory bodies rather than commercial counterparties, they appear on every
-Singapore company's bank statement, they issue none of the generated documents,
-and there is no fictional equivalent that would not make the data misleading.
+Some bank descriptions name real businesses, because that is what a real
+statement looks like and the categorisation logic has to handle it. Those are
+nominative references and nothing more: no affiliation or endorsement is
+implied, nothing is asserted about the named business, and no generated document
+is presented as issued by one. That last point is the one that matters - a
+fabricated tax invoice carrying a real company's name and a made-up GST
+registration number would be a forged record, so every document issuer here is
+fictional.
+
+`IRAS` and `CPF Board` appear as themselves. They are statutory bodies rather
+than commercial counterparties, they appear on every Singapore company's bank
+statement, they issue none of the generated documents, and inventing a fictional
+tax authority would make the data misleading rather than safer.
+
+Every rendered file carries this on its face:
+
+> SPECIMEN - synthetic data generated for software testing. This is not a
+> genuine financial record. The account holder, the issuing institution and all
+> amounts are fictional, and no real party is represented.

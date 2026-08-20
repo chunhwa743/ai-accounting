@@ -14,6 +14,7 @@ from __future__ import annotations
 import csv
 import json
 import random
+import textwrap
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
@@ -31,6 +32,17 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from .models import SupportingDoc, Txn, period_dates, running_balances
 
 PAGE_ROWS = 18  # rows per statement page, so multi-page handling is exercised
+
+# Every file this module writes is a document by appearance - a statement, a tax
+# invoice, a till receipt. The notice travels with the file, so a copy that has
+# been separated from this repository still says what it is. Any real trading
+# name appearing in a description is a nominative reference and nothing more:
+# no affiliation, endorsement or actual transaction is represented.
+SPECIMEN_NOTICE = (
+    "SPECIMEN - synthetic data generated for software testing. "
+    "This is not a genuine financial record. The account holder, the issuing "
+    "institution and all amounts are fictional, and no real party is represented."
+)
 
 # reportlab stamps a creation timestamp and a random document id into every
 # PDF, which would make regeneration produce different bytes each run. This
@@ -124,6 +136,8 @@ def render_statement_pdf(
         "within 14 days.",
         header,
     ))
+    flow.append(Spacer(1, 4 * mm))
+    flow.append(Paragraph(f"<b>{SPECIMEN_NOTICE}</b>", header))
 
     doc.build(flow)
     return max(1, (len(txns) // PAGE_ROWS) + 1)
@@ -198,6 +212,11 @@ def render_statement_csv(
                 row.append(_fmt(balance))
             writer.writerow(row)
 
+        # A trailing row, not a leading one: the reader takes row 0 as the
+        # header, and already drops later rows that carry no parseable date.
+        writer.writerow([])
+        writer.writerow([f"# {SPECIMEN_NOTICE}"])
+
 
 # ---------------------------------------------------------------- documents
 
@@ -245,6 +264,8 @@ def render_invoice_pdf(path: Path, doc: SupportingDoc, buyer: str) -> None:
         table,
         Spacer(1, 6 * mm),
         Paragraph("Payment terms: 30 days. Please quote the invoice number.", small),
+        Spacer(1, 5 * mm),
+        Paragraph(f"<b>{SPECIMEN_NOTICE}</b>", small),
     ])
 
 
@@ -268,6 +289,8 @@ def render_receipt_jpg(path: Path, doc: SupportingDoc, seed: int = 11) -> None:
         f"GST 9%{_fmt(doc.tax):>28}",
         f"TOTAL{_fmt(doc.total):>29}",
         "-" * 34, "", "NETS  ****4471", "THANK YOU",
+        "", "-" * 34,
+        *textwrap.wrap(SPECIMEN_NOTICE, width=34),
     ]
 
     y = 40
@@ -308,6 +331,8 @@ def render_payroll_docx(path: Path, doc: SupportingDoc, employees: int = 6) -> N
     document.add_paragraph(
         "Employer CPF contributions are remitted separately to the CPF Board."
     )
+    document.add_paragraph("")
+    document.add_paragraph(SPECIMEN_NOTICE).runs[0].bold = True
     document.save(path)
 
 

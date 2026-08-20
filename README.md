@@ -364,6 +364,40 @@ CSV for no reason.
 
 ## The test data
 
+> **All test data is synthetic. It is not a real financial record.**
+>
+> The clients, the banks that issue the statements, every vendor that issues an
+> invoice or receipt, every person, every account number and every registration
+> number are invented. No transaction described anywhere in this repository
+> occurred.
+>
+> Some bank descriptions name real businesses, because that is what a real
+> statement looks like and the categorisation logic has to cope with it. Those
+> are nominative references only — no affiliation, sponsorship or endorsement is
+> implied, nothing is asserted about the named business, and **no generated
+> document is presented as issued by one**. That last point is the one that
+> matters: a fabricated tax invoice carrying a real company's name and a made-up
+> GST registration number would be a forged commercial record, so every document
+> issuer here is fictional.
+>
+> `IRAS` and `CPF Board` appear as themselves. They are statutory bodies rather
+> than commercial counterparties, they appear on every Singapore company's bank
+> statement, they issue none of the generated documents, and inventing a
+> fictional tax authority would make the data misleading rather than safer.
+>
+> Every rendered file — statement, invoice, receipt, payroll summary, CSV —
+> carries this on its face, so a copy separated from this repository still says
+> what it is:
+>
+> ```
+> SPECIMEN - synthetic data generated for software testing. This is not a
+> genuine financial record. The account holder, the issuing institution and
+> all amounts are fictional, and no real party is represented.
+> ```
+>
+> The text is `SPECIMEN_NOTICE` in [`src/aiacct/testdata/render.py`](src/aiacct/testdata/render.py),
+> and the same disclaimer heads every `data/testdata/*.md` and `data/demo/*.md`.
+
 Two clients, written down in `data/testdata/*.md` and rendered by a seeded
 generator, so regeneration reproduces the same files. The one exception is the
 scanned statement: Pillow stamps a creation date into the PDF it writes, so its
