@@ -19,11 +19,14 @@ import tempfile
 from decimal import Decimal
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from ..auth import AuthError, authenticate, create_access_token, user_from_token
 from ..config import get_settings
 from ..db import Repositories
+from ..db.models import User
 from ..export import export_all, run_summary
 from ..graph import run_pipeline
 from ..llm import get_llm_client
@@ -42,7 +45,10 @@ app = FastAPI(
     description=(
         "Reads a client's bank statement and supporting documents, codes each "
         "transaction to a general ledger account, scores how sure it is, and "
-        "routes what it cannot resolve to an accountant."
+        "routes what it cannot resolve to an accountant. "
+        "Sign in at POST /api/v1/auth/login and send the token as "
+        "`Authorization: Bearer <token>`. Accounts are seeded, not "
+        "self-registered."
     ),
 )
 
@@ -55,9 +61,28 @@ def get_repos() -> Repositories:
     return Repositories.open()
 
 
-def require_api_key(x_api_key: str = Header(default="")) -> None:
-    if x_api_key != settings.api_key:
-        raise HTTPException(status_code=401, detail="invalid or missing X-API-Key")
+bearer = HTTPBearer(auto_error=False, description="Token from POST /api/v1/auth/login")
+
+
+def current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
+    repos: Repositories = Depends(get_repos),
+) -> User:
+    """Resolve the signed-in accountant, or reject the request.
+
+    Every endpoint depends on this rather than on a shared key, because
+    `approved_by` and `corrected_by` have to name a real person - a set of books
+    that nobody is recorded as having signed off is not much of an audit trail.
+    """
+    if credentials is None:
+        raise HTTPException(
+            status_code=401,
+            detail="missing bearer token - sign in at POST /api/v1/auth/login",
+        )
+    try:
+        return user_from_token(repos, credentials.credentials, settings)
+    except AuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
 def error(status: int, code: str, message: str, **details):
@@ -83,11 +108,49 @@ def health() -> dict:
     }
 
 
+# ---------------------------------------------------------------- auth
+
+
+@app.post("/api/v1/auth/login", response_model=api.TokenResponse, tags=["auth"])
+def login(body: api.LoginRequest, repos: Repositories = Depends(get_repos)):
+    """Exchange an email and password for an access token.
+
+    There is no sign-up endpoint by design: a firm decides who works on its
+    clients' books, so accounts are seeded rather than self-registered. See the
+    README for the seeded users and their password.
+    """
+    try:
+        user = authenticate(repos, body.email, body.password)
+    except AuthError as exc:
+        # One message for both an unknown email and a wrong password, so this
+        # cannot be used to discover which addresses exist.
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+    token, expires_in = create_access_token(user, settings)
+    return api.TokenResponse(
+        access_token=token,
+        expires_in=expires_in,
+        user=_user_out(user),
+    )
+
+
+@app.get("/api/v1/auth/me", response_model=api.UserOut, tags=["auth"])
+def whoami(user: User = Depends(current_user)):
+    """Who the current token belongs to. Useful for restoring a session."""
+    return _user_out(user)
+
+
+def _user_out(user: User) -> api.UserOut:
+    return api.UserOut(
+        id=user.id, name=user.name, email=user.email, last_login_at=user.last_login_at
+    )
+
+
 # ---------------------------------------------------------------- reference
 
 
 @app.get("/api/v1/chart-of-accounts", response_model=list[api.AccountOut], tags=["reference"])
-def chart_of_accounts(_: None = Depends(require_api_key)):
+def chart_of_accounts(user: User = Depends(current_user)):
     return [
         api.AccountOut(
             code=a.code, name=a.name, type=str(a.type),
@@ -99,7 +162,7 @@ def chart_of_accounts(_: None = Depends(require_api_key)):
 
 
 @app.get("/api/v1/tax-codes", response_model=list[api.TaxCodeOut], tags=["reference"])
-def tax_codes(_: None = Depends(require_api_key)):
+def tax_codes(user: User = Depends(current_user)):
     codes = get_tax_codes()
     return [
         api.TaxCodeOut(
@@ -118,7 +181,7 @@ def tax_codes(_: None = Depends(require_api_key)):
 def create_client(
     body: api.ClientCreate,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     client = repos.clients.create(
         Client(
@@ -131,7 +194,7 @@ def create_client(
 
 
 @app.get("/api/v1/clients", response_model=list[api.ClientOut], tags=["clients"])
-def list_clients(repos: Repositories = Depends(get_repos), _: None = Depends(require_api_key)):
+def list_clients(repos: Repositories = Depends(get_repos), user: User = Depends(current_user)):
     return [_client_out(c) for c in repos.clients.list()]
 
 
@@ -139,7 +202,7 @@ def list_clients(repos: Repositories = Depends(get_repos), _: None = Depends(req
 def get_profile(
     client_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     client = repos.clients.get(client_id)
     if client is None:
@@ -152,7 +215,7 @@ def update_profile(
     client_id: int,
     body: api.ClientProfileIn,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     client = repos.clients.get(client_id)
     if client is None:
@@ -180,7 +243,7 @@ async def upload_documents(
     client_id: int,
     files: list[UploadFile] = File(...),
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """Accept one or more files. Nothing is read yet - that happens in a run.
 
@@ -211,7 +274,7 @@ async def upload_documents(
 def get_document(
     document_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     doc = repos.documents.get(document_id)
     if doc is None:
@@ -223,7 +286,7 @@ def get_document(
 def get_document_content(
     document_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """The original file, so a reviewer can see it beside the coding."""
     doc = repos.documents.get(document_id)
@@ -257,7 +320,7 @@ def start_run(
     body: api.RunCreate,
     background: BackgroundTasks,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """Start processing. Returns immediately; poll or stream for progress."""
     if repos.clients.get(client_id) is None:
@@ -303,7 +366,7 @@ def _execute_run(run_id: int, client_id: int, paths: list[str]) -> None:
 def get_run(
     run_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     run = repos.runs.get(run_id)
     if run is None:
@@ -325,7 +388,7 @@ def get_run(
 async def run_events(
     run_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """Server-sent progress. Closes when the run reaches a gate or finishes."""
 
@@ -354,7 +417,7 @@ def run_transactions(
     run_id: int,
     status: AllocationStatus | None = Query(default=None),
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """Allocations for a run, most in need of attention first."""
     allocations = repos.allocations.list_for_run(run_id, status)
@@ -384,7 +447,7 @@ def run_transactions(
 def run_issues(
     run_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """Fields a person must supply before the run can continue.
 
@@ -416,7 +479,7 @@ def run_issues(
 def complete_run(
     run_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """Close the run once the flagged items have been dealt with.
 
@@ -444,7 +507,7 @@ def export_run(
     run_id: int,
     format: str = Query(default="xlsx", pattern="^(xlsx|csv|json|journal)$"),
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     from ..export import build_journal, client_queries, journal_csv, review_csv, review_xlsx
 
@@ -481,7 +544,7 @@ def export_run(
 def transaction_detail(
     transaction_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     txn = repos.transactions.get(transaction_id)
     if txn is None:
@@ -506,7 +569,7 @@ def review_allocation(
     allocation_id: int,
     body: api.ReviewAction,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """Approve, correct, or split one allocation.
 
@@ -515,7 +578,6 @@ def review_allocation(
     past transactions it would have captured so the reviewer can sanity-check
     it. Rule creation is refused if the description was not read cleanly.
     """
-    user = repos.users.get_or_create("API user", "api@firm.example")
     service = ReviewService(repos, get_llm_client(settings))
     coa = get_chart_of_accounts()
 
@@ -561,9 +623,8 @@ def bulk_review(
     run_id: int,
     body: api.BulkReview,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
-    user = repos.users.get_or_create("API user", "api@firm.example")
     service = ReviewService(repos, get_llm_client(settings))
     done, skipped = [], []
 
@@ -584,14 +645,13 @@ def answer_query(
     allocation_id: int,
     body: api.QueryAnswer,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """Record what the client said.
 
     The answer becomes a durable fact on the client profile, so the next run
     has the context this one lacked.
     """
-    user = repos.users.get_or_create("API user", "api@firm.example")
     service = ReviewService(repos, get_llm_client(settings))
     outcome = service.answer_query(allocation_id, user.id, body.answer, body.account_code)
     return {
@@ -605,7 +665,7 @@ def answer_query(
 def fix_extraction(
     body: api.ExtractionFix,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """Supply a value the machine could not read.
 
@@ -614,7 +674,6 @@ def fix_extraction(
     "read this smudge as a 9" - but it is recorded for audit and for the
     extraction quality metric.
     """
-    user = repos.users.get_or_create("API user", "api@firm.example")
     service = ReviewService(repos, get_llm_client(settings))
     correction = service.correct_extraction(
         user.id, body.field_name, body.new_value,
@@ -635,7 +694,7 @@ def fix_extraction(
 def list_rules(
     client_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """What the system has learned about this client.
 
@@ -661,7 +720,7 @@ def delete_rule(
     client_id: int,
     rule_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     repos.rules.deactivate(rule_id)
 
@@ -670,7 +729,7 @@ def delete_rule(
 def client_metrics(
     client_id: int,
     repos: Repositories = Depends(get_repos),
-    _: None = Depends(require_api_key),
+    user: User = Depends(current_user),
 ):
     """Per-run history, which is where the learning shows up.
 

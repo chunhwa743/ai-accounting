@@ -1,4 +1,15 @@
 # Firm staff. Not clients - these are the accountants who review the work.
+#
+# Accounts are seeded, never self-registered: a firm decides who works on its
+# clients' books, so the API has no sign-up endpoint. Every user is given the
+# same password at seed time (settings.seed_password, documented in the README).
+#
+# Two users rather than one, because preparer/reviewer separation is ordinary
+# accounting practice and `allocation.approved_by` is meant to distinguish them.
+
 users:
   - name: Wei Ling Tan
     email: weiling@firm.example
+
+  - name: Marcus Lee
+    email: marcus@firm.example

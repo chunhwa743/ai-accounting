@@ -144,13 +144,26 @@ class Client(Base):
 
 
 class User(Base):
-    """A member of the firm's staff, not a client."""
+    """A member of the firm's staff, not a client.
+
+    Accounts are seeded, not self-registered: a firm decides who works on its
+    clients' books. There is deliberately no sign-up endpoint.
+
+    The row is also what ``allocation.approved_by`` and
+    ``correction.corrected_by`` point at, so who signed off on a set of books is
+    a real question the database can answer.
+    """
 
     __tablename__ = "app_user"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200))
     email: Mapped[str] = mapped_column(String(320), unique=True)
+    # Argon2id. Nullable so a seeded row can exist before a password is set;
+    # a user without one simply cannot log in.
+    password_hash: Mapped[str | None] = mapped_column(String(200))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_login_at: Mapped[datetime | None] = timestamp()
     created_at: Mapped[datetime] = timestamp(server_default=func.now())
 
 

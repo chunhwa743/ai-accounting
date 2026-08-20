@@ -85,8 +85,18 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 50 * 1024 * 1024
 
     # ---- API ----
-    api_key: str = "dev-local-key"
     api_title: str = "AI Accounting Assistant"
+
+    # Signs access tokens. Must be at least 32 bytes for HS256, and must be
+    # replaced anywhere but a local machine - anyone holding it can mint a
+    # token for any user.
+    jwt_secret: str = "dev-only-insecure-secret-change-me-before-any-real-use"
+    access_token_minutes: int = 12 * 60   # a working day, so a review session
+                                          # spanning an afternoon does not expire
+
+    # Applied to every seeded user by scripts/seed_db.py. Accounts are seeded
+    # rather than self-registered, so this is how anyone signs in at all.
+    seed_password: str = "aiacct-demo-2026"
 
     def ensure_dirs(self) -> None:
         for path in (self.upload_dir, self.export_dir):

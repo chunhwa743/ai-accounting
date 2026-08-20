@@ -27,6 +27,28 @@ class ErrorResponse(BaseModel):
     error: ErrorDetail
 
 
+# ---------------------------------------------------------------- auth
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: "UserOut"
+
+
+class UserOut(BaseModel):
+    id: int
+    name: str
+    email: str
+    last_login_at: datetime | None = None
+
+
 # ---------------------------------------------------------------- clients
 
 

@@ -63,10 +63,23 @@ def seed_accounts(repos: Repositories) -> tuple[int, int]:
     return len(entries), len(repos.accounts.list_active()) - before
 
 
-def seed_users(repos: Repositories) -> int:
+def seed_users(repos: Repositories, settings) -> int:
+    """Create the firm's staff and give them a password.
+
+    Accounts are seeded rather than self-registered: a firm decides who works
+    on its clients' books, so there is no sign-up endpoint. The password comes
+    from settings.seed_password and is the same for everyone - fine for a demo,
+    and documented in the README so nobody has to guess.
+    """
+    from aiacct.auth import hash_password
+
     entries = load("users.yaml")["users"]
+    password_hash = hash_password(settings.seed_password)
+
     for entry in entries:
-        repos.users.get_or_create(entry["name"], entry["email"])
+        user = repos.users.get_or_create(entry["name"], entry["email"])
+        # Re-applied on every seed, so a forgotten password is one command away.
+        repos.users.set_password(user.id, password_hash)
     return len(entries)
 
 
@@ -125,8 +138,8 @@ def main() -> int:
         total, new = seed_accounts(repos)
         print(f"  chart of accounts   {total} accounts ({new} new)")
 
-        users = seed_users(repos)
-        print(f"  firm staff          {users} user(s)")
+        users = seed_users(repos, settings)
+        print(f"  firm staff          {users} user(s), password: {settings.seed_password!r}")
 
         total, new = seed_clients(repos)
         print(f"  clients             {total} ({new} new, {total - new} updated)")

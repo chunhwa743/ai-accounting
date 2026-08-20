@@ -107,11 +107,33 @@ class UserRepo:
     def get(self, user_id: int) -> User | None:
         return self.session.get(User, user_id)
 
+    def get_by_email(self, email: str) -> User | None:
+        return self.session.scalar(
+            select(User).where(func.lower(User.email) == email.strip().lower())
+        )
+
     def get_or_create(self, name: str, email: str) -> User:
-        existing = self.session.scalar(select(User).where(User.email == email))
+        existing = self.get_by_email(email)
         if existing:
             return existing
         return self.create(User(name=name, email=email))
+
+    def set_password(self, user_id: int, password_hash: str) -> None:
+        user = self.session.get(User, user_id)
+        if user is None:
+            return
+        user.password_hash = password_hash
+        self.session.commit()
+
+    def record_login(self, user_id: int) -> None:
+        user = self.session.get(User, user_id)
+        if user is None:
+            return
+        user.last_login_at = _now()
+        self.session.commit()
+
+    def list_all(self) -> list[User]:
+        return list(self.session.scalars(select(User).order_by(User.name)))
 
 
 class AccountRepo:

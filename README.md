@@ -55,7 +55,7 @@ python scripts/seed_db.py   # chart of accounts, demo clients, firm staff
 python scripts/generate_test_files.py   # renders data/testdata/*.md into PDFs, scans, CSVs
 
 # 6  Run
-python -m pytest                        # 83 tests, no API key needed
+python -m pytest                        # 102 tests, no API key needed
 python scripts/demo_learning_loop.py    # the headline demo
 python scripts/evaluate.py              # accuracy and calibration
 uvicorn aiacct.api.main:app --reload    # API docs at /docs
@@ -63,6 +63,38 @@ uvicorn aiacct.api.main:app --reload    # API docs at /docs
 
 Only `OPENAI_API_KEY` genuinely has to be set. Everything else has a working
 default in `src/aiacct/config.py`, including `DATABASE_URL`.
+
+### Signing in
+
+The API requires a signed-in user. Accounts are **seeded, not self-registered**
+- a firm decides who works on its clients' books, so there is no sign-up
+endpoint. `scripts/seed_db.py` creates two accountants and gives both the same
+password:
+
+| Email | Name |
+| --- | --- |
+| `weiling@firm.example` | Wei Ling Tan |
+| `marcus@firm.example` | Marcus Lee |
+
+**Password: `aiacct-demo-2026`** - set by `SEED_PASSWORD`, and re-applied every
+time you seed, so a forgotten password is one command away.
+
+Two users rather than one because preparer/reviewer separation is ordinary
+accounting practice, and `allocation.approved_by` exists to record which of them
+signed off.
+
+```bash
+curl -X POST localhost:8000/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"weiling@firm.example","password":"aiacct-demo-2026"}'
+# -> { "access_token": "eyJ...", "expires_in": 43200, "user": {...} }
+
+curl localhost:8000/api/v1/clients -H 'Authorization: Bearer eyJ...'
+```
+
+Tokens last a working day, so a review session spanning an afternoon does not
+expire mid-way. `JWT_SECRET` must be replaced anywhere but a local machine -
+anyone holding it can mint a token for any user.
 
 The example uses the `postgres` superuser because that is the shortest path to a
 working local setup. For anything shared, give the application its own role that
