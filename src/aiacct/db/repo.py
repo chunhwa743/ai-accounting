@@ -311,11 +311,24 @@ class DocumentRepo:
             doc.reconciles = value
             self.session.commit()
 
-    def list_supporting(self, client_id: int) -> list[Document]:
+    def list_supporting_for_run(self, run_id: int) -> list[Document]:
+        """Supporting documents submitted with this run, and only those.
+
+        Scoped to the run rather than the client, because a run has to be
+        reproducible from the files it was handed. Matching against everything
+        a client ever uploaded lets a statement be resolved by evidence nobody
+        submitted with it, and lets one invoice be claimed by several bank
+        lines in different periods - which would make a double payment look
+        fully documented when both halves point at the same piece of paper.
+
+        An invoice that arrived with an earlier batch and belongs to this one
+        is re-submitted; ``attach_to_run`` recognises it by hash rather than
+        storing it twice.
+        """
         return list(
             self.session.scalars(
                 select(Document).where(
-                    Document.client_id == client_id,
+                    Document.run_id == run_id,
                     Document.document_type.in_(SUPPORTING_TYPES),
                 )
             )

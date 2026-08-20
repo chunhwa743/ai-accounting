@@ -340,7 +340,7 @@ class Pipeline:
 
         rules = self.repos.rules.list_active(client.id)
         corrections = self.repos.corrections.recent_for_client(client.id)
-        documents = self.repos.documents.list_supporting(client.id)
+        documents = self.repos.documents.list_supporting_for_run(state["run_id"])
         duplicate_ids = {i for pair in find_possible_duplicates(transactions) for i in pair}
 
         # --- step 1: learned rules ---
