@@ -7,7 +7,13 @@ from decimal import Decimal
 
 import pytest
 
-from aiacct.categorisation import find_rule, preview_rule, should_create_rule
+from aiacct.categorisation import (
+    find_rule,
+    preview_rule,
+    should_create_rule,
+    similar_corrections,
+    similar_corrections_for_batch,
+)
 from aiacct.models import AllocationStatus, DecisionMethod, DocumentType, Legibility
 from aiacct.db.models import Allocation, BankTransaction, Document, MerchantRule, Run
 from aiacct.review import ReviewService, _fallback_pattern
@@ -302,3 +308,53 @@ class TestSplits:
 
         count = repos.session.scalar(select(func.count()).select_from(Correction))
         assert count == 1
+
+
+class TestBatchExampleSelection:
+    """The prompt carries one example block for a batch of up to 20.
+
+    Choosing it from the first transaction alone meant every other
+    transaction was shown examples picked for something unrelated - and when
+    the first transaction matched nothing, the prompt announced there were no
+    corrections at all, silently switching the learning off for that batch.
+    """
+
+    def _corrections(self):
+        # Newest first, the order recent_for_client returns.
+        return [
+            {"raw_description": "PAYNOW-LOW MEI CHEN", "to_account_id": "408",
+             "to_tax_code": "TX"},
+            {"raw_description": "PAYNOW-LOW MEI CHEN", "to_account_id": "980",
+             "to_tax_code": "OP"},
+            {"raw_description": "GRAB *TRIP 7712 SG", "to_account_id": "493",
+             "to_tax_code": "TX"},
+        ]
+
+    def _batch(self, repos, agency):
+        _, doc_id = make_statement(repos, agency.id)
+        return [
+            add_transaction(repos, agency.id, doc_id,
+                            "GIRO PAYMENT TELCOVA BROADBAND 2891004", line_no=1),
+            add_transaction(repos, agency.id, doc_id,
+                            "PAYNOW-LOW MEI CHEN", line_no=2),
+        ]
+
+    def test_a_correction_reaches_a_transaction_that_is_not_first(self, repos, agency):
+        batch = self._batch(repos, agency)
+        found = similar_corrections_for_batch(batch, self._corrections())
+        assert any("LOW MEI" in e.description.upper() for e in found), (
+            "the correction for transaction 2 was dropped because "
+            "transaction 1 matched nothing"
+        )
+
+    def test_selecting_on_the_first_transaction_alone_finds_nothing(self, repos, agency):
+        """The old behaviour, kept as the reason this class exists."""
+        batch = self._batch(repos, agency)
+        assert similar_corrections(batch[0], self._corrections()) == []
+
+    def test_a_description_corrected_twice_teaches_only_the_newest(self, repos, agency):
+        batch = self._batch(repos, agency)
+        found = similar_corrections_for_batch(batch, self._corrections())
+        low = [e for e in found if "LOW MEI" in e.description.upper()]
+        assert len(low) == 1, "the same description should appear once, not argue"
+        assert low[0].account_code == "408", "the newer correction should win"

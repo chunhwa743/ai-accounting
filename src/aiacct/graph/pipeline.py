@@ -26,7 +26,12 @@ from pathlib import Path
 
 from langgraph.graph import END, START, StateGraph
 
-from ..categorisation import batches, categorise_batch, find_rule, similar_corrections
+from ..categorisation import (
+    batches,
+    categorise_batch,
+    find_rule,
+    similar_corrections_for_batch,
+)
 from ..config import get_settings
 from ..confidence import Signals, compute_confidence, route_allocation
 from ..db import Repositories
@@ -356,7 +361,9 @@ class Pipeline:
         results: dict[int, object] = {}
         calls = tokens_in = tokens_out = 0
         for batch in batches(unresolved):
-            examples = similar_corrections(batch[0], corrections) if corrections else []
+            examples = (
+                similar_corrections_for_batch(batch, corrections) if corrections else []
+            )
             matched_docs = {
                 t.id: matches[t.id].document for t in batch if t.id in matches
             }

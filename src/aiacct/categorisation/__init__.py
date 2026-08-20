@@ -10,6 +10,7 @@ from .memory import (
     preview_rule,
     should_create_rule,
     similar_corrections,
+    similar_corrections_for_batch,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "preview_rule",
     "should_create_rule",
     "similar_corrections",
+    "similar_corrections_for_batch",
 ]

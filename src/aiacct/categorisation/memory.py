@@ -120,6 +120,45 @@ def similar_corrections(
     return scored[:limit]
 
 
+def latest_per_description(corrections: list[dict]) -> list[dict]:
+    """Collapse repeated corrections for one description to the newest.
+
+    A description corrected twice - to different accounts, because the first
+    answer was wrong - should teach the latest decision, not argue with
+    itself. ``recent_for_client`` returns newest first, so the first
+    occurrence is the one to keep.
+    """
+    seen: dict[str, dict] = {}
+    for row in corrections:
+        key = (row.get("raw_description") or "").upper()
+        if key and key not in seen:
+            seen[key] = row
+    return list(seen.values())
+
+
+def similar_corrections_for_batch(
+    transactions: list[BankTransaction],
+    corrections: list[dict],
+    limit: int | None = None,
+) -> list[Example]:
+    """Examples relevant to any transaction in the batch, not just the first.
+
+    The prompt carries one example block shared by the whole batch. Selecting
+    on the first transaction alone gives every other transaction examples
+    chosen for something unrelated - and when the first transaction happens to
+    match nothing, the prompt states there are no corrections at all, which
+    silently switches the learning off for that batch.
+    """
+    pool = latest_per_description(corrections)
+    per_txn = get_settings().memory_example_count
+    picked: dict[str, Example] = {}
+    for txn in transactions:
+        for example in similar_corrections(txn, pool, limit=per_txn):
+            picked.setdefault(example.description.upper(), example)
+    ranked = sorted(picked.values(), key=lambda e: -e.similarity)
+    return ranked[: (limit or per_txn * 3)]
+
+
 def format_examples(examples: list[Example]) -> str:
     if not examples:
         return "(no previous corrections for this client yet)"
