@@ -49,6 +49,14 @@ def slug(text: str) -> str:
     return "".join(c if c.isalnum() else "-" for c in text.lower()).strip("-")
 
 
+def _relative(path: Path) -> Path:
+    """Show paths relative to the repo when they sit inside it."""
+    try:
+        return path.resolve().relative_to(ROOT)
+    except ValueError:
+        return path
+
+
 def render_period(period: Period, out_dir: Path) -> dict:
     statements = out_dir / "statements"
     documents = out_dir / "documents"
@@ -129,27 +137,46 @@ def render_period(period: Period, out_dir: Path) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    global OUT
+
     parser.add_argument("--client", help="only this UEN")
+    parser.add_argument(
+        "--source", type=Path, default=ROOT / "data" / "testdata",
+        help="directory of markdown definitions",
+    )
+    parser.add_argument(
+        "--out", type=Path, default=OUT,
+        help="where to write the rendered files",
+    )
+    parser.add_argument(
+        "--flat", action="store_true",
+        help="one folder per definition file rather than per client, for demo sets",
+    )
     args = parser.parse_args()
+    OUT = args.out.resolve()
 
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
 
-    periods = load_all()
+    periods = load_all(args.source)
     if args.client:
         periods = [p for p in periods if p.client_uen == args.client]
 
-    print(f"\nRendering {len(periods)} period(s) from data/testdata/\n")
+    source = _relative(Path(args.source))
+    print(f"\nRendering {len(periods)} period(s) from {source}\n")
 
     manifest: dict[str, dict] = {}
     by_client: dict[str, list[Period]] = {}
     for period in periods:
-        by_client.setdefault(period.client_name, []).append(period)
+        # --flat groups by the definition file instead, so each demo scenario
+        # lands in its own folder and can be handed over as a unit.
+        key = period.key if args.flat else period.client_name
+        by_client.setdefault(key, []).append(period)
 
     for client_name, client_periods in by_client.items():
         print(f"  {client_name}")
-        out_dir = OUT / slug(client_name)
+        out_dir = OUT / (client_name if args.flat else slug(client_name))
         for period in sorted(client_periods, key=lambda p: p.period):
             detail = render_period(period, out_dir)
             manifest[period.key] = {"client_uen": period.client_uen, **detail}
@@ -173,8 +200,8 @@ def main() -> int:
         print()
 
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    print(f"Written to {OUT.relative_to(ROOT)} (not committed - this is build output)")
-    print("The answer key stays in data/testdata/*.md and is read only by evaluate.py.")
+    print(f"Written to {_relative(OUT)} (not committed - this is build output)")
+    print(f"The answer key stays in {source}/*.md and is read only by evaluate.py.")
     return 0
 
 

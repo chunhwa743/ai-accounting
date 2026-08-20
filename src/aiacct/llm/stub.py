@@ -38,8 +38,8 @@ T = TypeVar("T", bound=BaseModel)
 
 # description fragment -> (account code, top score)
 KEYWORD_ACCOUNTS: list[tuple[str, str, float]] = [
-    ("SINGTEL", "489", 0.93),
-    ("STARHUB", "489", 0.93),
+    ("TELCOVA", "489", 0.93),
+    ("NEXUSFIBRE", "489", 0.93),
     ("SP GROUP", "445", 0.92),
     ("SP SERVICES", "445", 0.92),
     ("IRAS-GST", "820", 0.90),
@@ -72,7 +72,7 @@ KEYWORD_ACCOUNTS: list[tuple[str, str, float]] = [
     ("PARTITION", "473", 0.87),
     ("BROADBAND", "489", 0.90),
     ("ACME SUPPLIES", "453", 0.62),
-    ("CHALLENGER", "453", 0.55),  # wrong on purpose: a laptop should be capitalised
+    ("TECHPOINT", "453", 0.55),  # wrong on purpose: a laptop should be capitalised
     ("NTUC", "425", 0.61),
     ("FAIRPRICE", "425", 0.61),
     ("SHENG SIONG", "425", 0.60),

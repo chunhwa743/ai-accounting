@@ -54,7 +54,7 @@ class TestPatternDerivation:
         [
             ("GRAB *TRIP 8829 SG", "GRAB *TRIP"),
             ("GRABFOOD *ORDER 4471", "GRABFOOD *ORDER"),
-            ("GIRO PAYMENT SINGTEL 2891004", "SINGTEL"),
+            ("GIRO PAYMENT TELCOVA BROADBAND 2891004", "TELCOVA BROADBAND"),
             ("PAYNOW-ACME SUPPLIES PTE LTD-88291", "ACME SUPPLIES"),
             ("NETS QR NTUC FAIRPRICE #04-22", "NTUC FAIRPRICE"),
         ],
@@ -124,13 +124,13 @@ class TestRuleCreation:
         # "Yes this is right, and stop asking me" is the commonest way an
         # accountant creates a rule.
         run_id, doc_id = make_statement(repos, agency.id)
-        txn = add_transaction(repos, agency.id, doc_id, "GIRO PAYMENT SINGTEL 2891004")
+        txn = add_transaction(repos, agency.id, doc_id, "GIRO PAYMENT TELCOVA BROADBAND 2891004")
         allocation = add_allocation(repos, run_id, txn, account="489")
 
         outcome = ReviewService(repos).approve(allocation.id, user.id, create_rule=True)
 
         assert outcome.rule is not None
-        assert outcome.rule.match_pattern == "SINGTEL"
+        assert outcome.rule.match_pattern == "TELCOVA BROADBAND"
 
     def test_guessed_description_never_becomes_a_rule(self, repos, agency, user):
         # A rule keyed on a half-read merchant name would miscode silently
@@ -175,10 +175,10 @@ class TestRuleCreation:
 class TestFeedback:
     def test_approval_confirms_the_rule_that_produced_it(self, repos, agency, user):
         rule = repos.rules.create(
-            MerchantRule(client_id=agency.id, match_pattern="SINGTEL", account_id="489")
+            MerchantRule(client_id=agency.id, match_pattern="TELCOVA", account_id="489")
         )
         run_id, doc_id = make_statement(repos, agency.id)
-        txn = add_transaction(repos, agency.id, doc_id, "GIRO PAYMENT SINGTEL 2891004")
+        txn = add_transaction(repos, agency.id, doc_id, "GIRO PAYMENT TELCOVA BROADBAND 2891004")
         allocation = repos.allocations.create(
             Allocation(
                 bank_transaction_id=txn.id, run_id=run_id, amount=txn.amount,
@@ -256,7 +256,7 @@ class TestSplits:
     def test_loan_repayment_splits_into_principal_and_interest(self, repos, agency, user):
         run_id, doc_id = make_statement(repos, agency.id)
         txn = add_transaction(
-            repos, agency.id, doc_id, "LOAN REPAYMENT DBS 88291", amount="1000.00"
+            repos, agency.id, doc_id, "LOAN REPAYMENT STRAITS UNION 88291", amount="1000.00"
         )
         allocation = add_allocation(repos, run_id, txn, account="437")
 
@@ -275,7 +275,7 @@ class TestSplits:
     def test_split_must_account_for_every_cent(self, repos, agency, user):
         run_id, doc_id = make_statement(repos, agency.id)
         txn = add_transaction(
-            repos, agency.id, doc_id, "LOAN REPAYMENT DBS 88291", amount="1000.00"
+            repos, agency.id, doc_id, "LOAN REPAYMENT STRAITS UNION 88291", amount="1000.00"
         )
         allocation = add_allocation(repos, run_id, txn, account="437")
 

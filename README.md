@@ -144,7 +144,7 @@ lives beside each one:
 ```markdown
 | Day | Description                    | Reference | Out     | In | Account | Tax | Why this is hard |
 | 10  | PAYNOW-ACME SUPPLIES-88291     | PN88291   | 1090.00 |    | 720     | TX  | The description is legible and still says nothing about what was bought. Only the invoice reveals a laptop, which is capitalised rather than expensed. |
-| 18  | LOAN REPAYMENT DBS 88291       | LN88291   | 1000.00 |    | split:900=800.00,437=200.00 | OP | One line, two accounts. The ratio comes from the loan schedule, which no model can know. |
+| 18  | LOAN REPAYMENT STRAITS UNION 88291 | LN88291   | 1000.00 |    | split:900=800.00,437=200.00 | OP | One line, two accounts. The ratio comes from the loan schedule, which no model can know. |
 | 26  | TRF 8891234                    |           | 780.00  |    | none    |     | No merchant token at all. Any confident answer would be invented. |
 ```
 
@@ -372,7 +372,7 @@ bytes differ between runs even though its content does not.
 The answer key lives in the markdown and is read only by `scripts/evaluate.py`,
 never by the pipeline.
 
-**Lumina Design Studio Pte Ltd** — GST-registered design agency, DBS:
+**Lumina Design Studio Pte Ltd** — GST-registered design agency, banking with Straits Union Bank:
 
 | Period | Format | What it exercises |
 | --- | --- | --- |

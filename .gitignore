@@ -223,3 +223,6 @@ __marimo__/
 # Generated test files: rendered from data/testdata/*.md, not source
 data/generated/
 data/synthetic/
+
+# Rendered demo files: built from data/demo/*.md, not source
+/demo/

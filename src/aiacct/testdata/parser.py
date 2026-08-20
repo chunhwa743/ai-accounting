@@ -255,7 +255,13 @@ def load_all(directory: Path | None = None) -> list[Period]:
     from ..config import PROJECT_ROOT
 
     directory = directory or PROJECT_ROOT / "data" / "testdata"
-    periods = [parse_file(path) for path in sorted(directory.glob("*.md"))]
+    # A directory of periods may also hold prose for the reader. Anything
+    # starting with "_" or named README is documentation, not a statement.
+    files = [
+        path for path in sorted(directory.glob("*.md"))
+        if not path.name.startswith("_") and path.stem.lower() != "readme"
+    ]
+    periods = [parse_file(path) for path in files]
     if not periods:
         raise TestDataError(f"no test data found in {directory}")
     return periods
