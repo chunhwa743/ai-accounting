@@ -1,0 +1,328 @@
+# Chart of accounts for a Singapore private limited company.
+#
+# Seeded once per client and changed deliberately by an accountant. The system
+# selects from this list; it never adds to it. Inventing accounts would
+# fragment the chart ("Telephone", "Phone", "Telco") and make every report wrong.
+#
+# default_tax_code supplies the GST treatment for ~90% of transactions with no
+# model involvement, because the chart is organised by the nature of the
+# transaction and GST treatment is determined by the same thing.
+#
+# risk_level HIGH forces human review regardless of confidence. These are the
+# accounts where being wrong is expensive: it changes the tax computation, the
+# balance sheet, or several years of depreciation.
+
+jurisdiction: SG
+currency: SGD
+
+accounts:
+  # ---- Assets ----
+  - code: "090"
+    name: Business Bank Account
+    type: ASSET
+    default_tax_code: OP
+    risk_level: HIGH
+    notes: Contra side of every bank line. A transfer here is not income or expense.
+
+  - code: "610"
+    name: Accounts Receivable
+    type: ASSET
+    default_tax_code: OP
+    risk_level: LOW
+
+  - code: "620"
+    name: Prepayments
+    type: ASSET
+    default_tax_code: OP
+    risk_level: HIGH
+    notes: Spans accounting periods, so the split needs a human.
+
+  - code: "710"
+    name: Office Equipment
+    type: ASSET
+    default_tax_code: TX
+    risk_level: HIGH
+    notes: Capitalised. Wrong here means wrong depreciation for several years.
+
+  - code: "711"
+    name: Accumulated Depreciation - Office Equipment
+    type: ASSET
+    default_tax_code: OP
+    risk_level: HIGH
+
+  - code: "720"
+    name: Computer Equipment
+    type: ASSET
+    default_tax_code: TX
+    risk_level: HIGH
+
+  # ---- Liabilities ----
+  - code: "800"
+    name: Accounts Payable
+    type: LIABILITY
+    default_tax_code: OP
+    risk_level: LOW
+
+  - code: "820"
+    name: GST Payable
+    type: LIABILITY
+    default_tax_code: OP
+    risk_level: HIGH
+    notes: An IRAS GST payment clears this liability. It is not an expense.
+
+  - code: "825"
+    name: CPF Payable
+    type: LIABILITY
+    default_tax_code: OP
+    risk_level: LOW
+
+  - code: "830"
+    name: Provision for Income Tax
+    type: LIABILITY
+    default_tax_code: OP
+    risk_level: HIGH
+
+  - code: "900"
+    name: Loan Payable
+    type: LIABILITY
+    default_tax_code: OP
+    risk_level: HIGH
+    notes: >
+      A loan repayment splits into principal (this account) and interest (437).
+      The ratio comes from the loan schedule, which no model can know.
+
+  # ---- Equity ----
+  - code: "960"
+    name: Retained Earnings
+    type: EQUITY
+    default_tax_code: OP
+    risk_level: HIGH
+
+  - code: "970"
+    name: Share Capital
+    type: EQUITY
+    default_tax_code: OP
+    risk_level: HIGH
+
+  - code: "980"
+    name: Director's Drawings
+    type: EQUITY
+    default_tax_code: OP
+    risk_level: HIGH
+    notes: >
+      Not an expense and not deductible. Confusing this with salary or
+      subcontractor cost misstates the tax computation.
+
+  - code: "985"
+    name: Director's Loan Account
+    type: EQUITY
+    default_tax_code: OP
+    risk_level: HIGH
+
+  # ---- Revenue ----
+  - code: "200"
+    name: Sales
+    type: REVENUE
+    default_tax_code: SR
+    risk_level: LOW
+
+  - code: "210"
+    name: Other Revenue
+    type: REVENUE
+    default_tax_code: SR
+    risk_level: LOW
+
+  - code: "260"
+    name: Interest Income
+    type: REVENUE
+    default_tax_code: EP
+    risk_level: LOW
+
+  # ---- Cost of sales ----
+  - code: "300"
+    name: Cost of Sales
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "310"
+    name: Subcontractors
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+    notes: Freelancers and contract workers. Contrast with 980 Drawings.
+
+  # ---- Operating expenses ----
+  - code: "404"
+    name: Bank Fees
+    type: EXPENSE
+    default_tax_code: EP
+    risk_level: LOW
+
+  - code: "408"
+    name: Cleaning
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "412"
+    name: Consulting & Accounting
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "420"
+    name: Entertainment
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+    notes: Client entertainment. Needs a document to establish business purpose.
+
+  - code: "425"
+    name: Staff Welfare
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+    notes: Staff meals, pantry supplies, team events.
+
+  - code: "429"
+    name: General Expenses
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "433"
+    name: Insurance
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+    notes: Medical insurance is blocked input tax - use 483 instead.
+
+  - code: "437"
+    name: Interest Expense
+    type: EXPENSE
+    default_tax_code: EP
+    risk_level: LOW
+
+  - code: "441"
+    name: Legal & Professional
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "445"
+    name: Light, Power & Heating
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "449"
+    name: Motor Vehicle Expenses
+    type: EXPENSE
+    default_tax_code: BL
+    risk_level: LOW
+    notes: >
+      Private motor car expenses are blocked input tax under regulation 27,
+      so GST is not claimable even with a valid tax invoice.
+
+  - code: "453"
+    name: Office Expenses
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "461"
+    name: Printing & Stationery
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "463"
+    name: IT Software & Subscriptions
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+    notes: >
+      Overseas SaaS such as Adobe or Figma is an imported service and should
+      be TX-RC (reverse charge), not TX.
+
+  - code: "469"
+    name: Rent
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "473"
+    name: Repairs & Maintenance
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "477"
+    name: Salaries
+    type: EXPENSE
+    default_tax_code: OP
+    risk_level: LOW
+    notes: Wages are not a supply, so there is no GST on payroll.
+
+  - code: "478"
+    name: CPF Employer Contributions
+    type: EXPENSE
+    default_tax_code: OP
+    risk_level: LOW
+
+  - code: "479"
+    name: Staff Training
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "483"
+    name: Medical Expenses
+    type: EXPENSE
+    default_tax_code: BL
+    risk_level: LOW
+    notes: Blocked input tax under regulation 26.
+
+  - code: "485"
+    name: Club Subscriptions
+    type: EXPENSE
+    default_tax_code: BL
+    risk_level: LOW
+    notes: Blocked input tax under regulation 26.
+
+  - code: "489"
+    name: Telephone & Internet
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "493"
+    name: Travel - Local
+    type: EXPENSE
+    default_tax_code: TX
+    risk_level: LOW
+
+  - code: "494"
+    name: Travel - Overseas
+    type: EXPENSE
+    default_tax_code: OP
+    risk_level: LOW
+    notes: Services consumed outside Singapore are out of scope.
+
+  - code: "499"
+    name: Foreign Exchange Loss
+    type: EXPENSE
+    default_tax_code: OP
+    risk_level: LOW
+
+  # ---- Holding account ----
+  - code: "999"
+    name: Suspense
+    type: ASSET
+    default_tax_code: OP
+    risk_level: HIGH
+    notes: >
+      Never assigned automatically. An unresolved allocation carries a NULL
+      account_id and status CLIENT_QUERY instead, so that "we do not know" is
+      never confused with "deliberately coded to suspense".

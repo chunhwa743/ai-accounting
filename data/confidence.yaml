@@ -1,0 +1,89 @@
+# Confidence scoring and routing policy.
+#
+# The score is computed by code, never returned by the model. Two of the
+# penalties come from extraction facts the categorisation call never sees, and
+# most transactions are resolved by a learned rule and never reach the model at
+# all - so the score has to exist independently of it.
+#
+# Weights are tuned against the synthetic ground truth via scripts/evaluate.py,
+# not guessed. Re-run it after changing anything here.
+
+# Starting point by how the account was determined.
+base:
+  # A rule is a human decision replayed verbatim, so it starts high. It can
+  # still be pulled below the auto-post line by an unverifiable statement or an
+  # unreadable description, and the hard gates apply to it regardless.
+  RULE: 0.95
+  LLM: 0.20           # a floor; nearly all of the signal is the top candidate
+  HUMAN: null         # a person's answer is not a probability
+
+# A rule that has been confirmed repeatedly is worth more than a fresh one.
+rule_confirmation_bonus:
+  per_confirmation: 0.01
+  max: 0.05
+
+# The model returns ranked alternatives. The gap between first and second is
+# the honest uncertainty signal - an observation about how close the call was,
+# rather than a self-assessment. Self-reported floats cluster near 0.9
+# regardless of input and are not used.
+llm:
+  top_score_weight: 0.75        # contribution of the top alternative's score
+  # The penalty applies only when the top two candidates are genuinely close.
+  # A margin at or above this is a decisive call and costs nothing; below it
+  # the penalty scales up linearly to ambiguity_penalty_max at a dead heat.
+  ambiguity_margin_threshold: 0.25
+  ambiguity_penalty_max: 0.25
+
+# A matched supporting document corroborates the categorisation and supplies
+# the GST figure.
+document_match:
+  boost_at_full_score: 0.08
+  min_score_to_count: 0.70
+
+# Penalties from phase 1. The categorisation call never sees these.
+penalties:
+  # raw_description was partly guessed off a poor scan
+  legibility_inferred: 0.05
+  legibility_ambiguous: 0.15
+  legibility_unreadable: 0.30
+
+  # the statement's arithmetic did not verify, or could not be run at all
+  reconciles_false: 0.15
+  reconciles_null: 0.05
+
+  # an expense above this with no supporting document is worth questioning
+  missing_document_above: 1000.00
+  missing_document: 0.07
+
+bands:
+  auto_post_at: 0.90
+  review_at: 0.60
+  # below review_at -> CLIENT_QUERY
+
+# Hard gates. These override the score entirely - a high number never buys a
+# way past them, because confidence and consequence are independent. The model
+# can be very confident that a large transfer is Director's Drawings and be
+# wrong.
+gates:
+  # Any account marked risk_level HIGH in the chart of accounts.
+  high_risk_account: NEEDS_REVIEW
+
+  # Claimability and filing decisions with a direct cash consequence.
+  review_tax_codes: [BL, TX-RC, IM]
+
+  # Absolute ceiling for automatic posting, regardless of client materiality.
+  amount_above: 10000.00
+
+  # No alphabetic merchant token at all, e.g. "TRF TO 8891234". There is
+  # nothing to reason from, so no amount of model confidence is meaningful.
+  opaque_description: CLIENT_QUERY
+
+  # Two transactions with the same date, amount and description. Could be
+  # genuine, could be a double payment - only a human can say.
+  possible_duplicate: NEEDS_REVIEW
+
+# Never let a half-read merchant name become a permanent rule. A wrong rule
+# silently miscodes every month until somebody notices.
+rule_creation:
+  block_if_description_legibility_below: inferred
+  auto_post_new_rules: true    # the accountant said "always"; risk gates still apply

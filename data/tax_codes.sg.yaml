@@ -1,0 +1,105 @@
+# IRAS GST codes, Singapore. Rate is 9% from 1 January 2024.
+#
+# These are fixed by legislation, so they live in configuration rather than a
+# database table. Allocation.tax_code stores the key; name and rate are looked
+# up here at display and export time.
+
+jurisdiction: SG
+standard_rate: 0.09
+
+codes:
+  # ---- Purchases (input tax) ----
+  TX:
+    name: Standard-rated purchase
+    rate: 0.09
+    claimable: true
+    applies_to: purchase
+    description: >
+      Local purchase from a GST-registered supplier. Input tax is claimable
+      provided a valid tax invoice is held.
+
+  TX-RC:
+    name: Imported services (reverse charge)
+    rate: 0.09
+    claimable: true
+    applies_to: purchase
+    description: >
+      Services bought from an overseas supplier. The buyer accounts for both
+      output and input tax. Applies to overseas SaaS such as Adobe or Figma.
+
+  ZP:
+    name: Zero-rated purchase
+    rate: 0.00
+    claimable: true
+    applies_to: purchase
+
+  IM:
+    name: Import of goods
+    rate: 0.09
+    claimable: true
+    applies_to: purchase
+    description: GST paid to Singapore Customs on imported goods.
+
+  BL:
+    name: Blocked input tax
+    rate: 0.09
+    claimable: false
+    applies_to: purchase
+    description: >
+      Expense on which input tax is NOT claimable even with a valid tax
+      invoice, under regulations 26 and 27 of the GST (General) Regulations.
+      Covers private motor car expenses, medical expenses and medical
+      insurance, club subscription fees, and family benefits.
+
+  EP:
+    name: Exempt purchase
+    rate: 0.00
+    claimable: false
+    applies_to: purchase
+    description: Financial services, including most bank charges and interest.
+
+  # ---- Supplies (output tax) ----
+  SR:
+    name: Standard-rated supply
+    rate: 0.09
+    claimable: false
+    applies_to: supply
+
+  ZR:
+    name: Zero-rated supply
+    rate: 0.00
+    claimable: false
+    applies_to: supply
+    description: Exports of goods and international services.
+
+  ES:
+    name: Exempt supply
+    rate: 0.00
+    claimable: false
+    applies_to: supply
+
+  # ---- Neither ----
+  OP:
+    name: Out of scope
+    rate: 0.00
+    claimable: false
+    applies_to: both
+    description: >
+      Not a supply at all. Wages, CPF, loan principal, transfers between own
+      accounts, drawings, capital.
+
+  NA:
+    name: Not GST registered
+    rate: 0.00
+    claimable: false
+    applies_to: both
+    description: >
+      Assigned to every allocation when the client is not GST-registered.
+
+# Assigning any of these forces human review regardless of confidence.
+# BL because it is a claimability decision with a direct cash consequence;
+# TX-RC and IM because they require additional filing treatment.
+review_required:
+  - BL
+  - TX-RC
+  - IM

@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ERD working file
+"AI Accounting.png"
+
+# Generated test files: rendered from data/testdata/*.md, not source
+data/generated/
+data/synthetic/

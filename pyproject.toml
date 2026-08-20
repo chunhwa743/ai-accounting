@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiacct"
+version = "0.1.0"
+description = "AI Accounting Assistant - automated bank statement coding with human review"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2",
+    "pydantic-settings",
+    "PyYAML",
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "openai",
+    "langgraph",
+    "langgraph-checkpoint-sqlite",
+    "pdfplumber",
+    "python-docx",
+    "openpyxl",
+    "Pillow",
+    "reportlab",
+    "rapidfuzz",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+filterwarnings = ["ignore::DeprecationWarning"]

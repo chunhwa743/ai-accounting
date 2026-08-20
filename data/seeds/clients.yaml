@@ -1,0 +1,46 @@
+# Client master data.
+#
+# A client is a business relationship - an engagement, a fee, a set of books -
+# so it is seeded, never invented by a script at run time and never created by
+# the system from a document. The accountant picks the client at upload; the
+# account-holder name extracted from a statement is only used to check that
+# choice, because posting one company's statement into another's books is
+# unrecoverable.
+#
+# `profile` is stored as JSONB and read whole to build the categorisation
+# prompt. `learned_facts` starts empty and grows as clients answer
+# clarifications - do not edit it by hand.
+
+clients:
+  - name: Lumina Design Studio Pte Ltd
+    uen: 202512345A
+    profile:
+      business_description: >-
+        Boutique brand and digital design agency in Tanjong Pagar, six staff,
+        B2B clients on 30-day terms. Occasional freelance illustrators and
+        copywriters engaged per project.
+      gst_registered: true
+      # Knowing which accounts the client owns is the only way to tell a
+      # transfer from an expense. Without this list a $5,000 move between their
+      # own accounts looks exactly like a supplier payment.
+      own_bank_accounts:
+        - 003-88291-1
+        - 501-44012-8
+      # At or above this, a purchase is a fixed asset rather than an expense.
+      capitalisation_threshold: "1000.00"
+      # Above this, an accountant looks regardless of confidence.
+      materiality_threshold: "5000.00"
+      learned_facts: []
+
+  - name: Kopi & Co Pte Ltd
+    uen: 202398765B
+    profile:
+      business_description: >-
+        Single-outlet coffee shop and kitchen in Katong. Walk-in trade plus
+        delivery platforms. Four staff.
+      gst_registered: true
+      own_bank_accounts:
+        - 501-99120-4
+      capitalisation_threshold: "1000.00"
+      materiality_threshold: "3000.00"
+      learned_facts: []
